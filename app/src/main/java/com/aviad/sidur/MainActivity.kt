@@ -17,11 +17,18 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
+import android.app.Activity
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : AppCompatActivity() {
     private lateinit var web: WebView
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var fileCb: ValueCallback<Array<Uri>>? = null
+    private val picker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val uris = if (r.resultCode == Activity.RESULT_OK && r.data?.data != null) arrayOf(r.data!!.data!!) else null
+        fileCb?.onReceiveValue(uris); fileCb = null
+    }
     private val startUrl = "https://appassets.androidplatform.net/assets/index.html"
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -52,6 +59,11 @@ class MainActivity : AppCompatActivity() {
         web.webChromeClient = object : WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(origin: String, cb: GeolocationPermissions.Callback) {
                 cb.invoke(origin, true, false)
+            }
+            override fun onShowFileChooser(v: WebView, cb: ValueCallback<Array<Uri>>, p: FileChooserParams): Boolean {
+                fileCb?.onReceiveValue(null); fileCb = cb
+                val i = Intent(Intent.ACTION_GET_CONTENT).apply { addCategory(Intent.CATEGORY_OPENABLE); type = "image/*" }
+                return try { picker.launch(Intent.createChooser(i, "בחר תמונה")); true } catch (e: Exception) { fileCb = null; false }
             }
         }
         tts = TextToSpeech(this) { st -> if (st == TextToSpeech.SUCCESS) { tts?.language = Locale("he", "IL"); ttsReady = true } }
