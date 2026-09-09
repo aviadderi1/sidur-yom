@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#12161C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>סידור יום</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2312161C'/%3E%3Cpath d='M14 40 L26 24 L38 36 L50 18' stroke='%23F5A524' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='18' r='6' fill='%23F5A524'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --bg:#12161C; --bg2:#1A2028; --bg3:#232B36; --line:#2E3946;
+  --ink:#F2F4F7; --ink2:#A6B0BE; --ink3:#6C7686;
+  --amber:#F5A524; --amber2:#FFC85C; --green:#3ED598; --red:#FF6B6B; --blue:#5AA9FF;
+  --r:14px; --tap:56px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Heebo,system-ui,sans-serif;font-size:17px;overflow:hidden}
+body{display:flex;flex-direction:column}
+button,input,textarea,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+input,textarea,select{width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink);outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--amber)}
+input::placeholder,textarea::placeholder{color:var(--ink3)}
+label{display:block;font-size:14px;color:var(--ink2);margin:10px 0 5px}
+h1,h2,h3{margin:0;font-weight:700}
+.muted{color:var(--ink2)} .small{font-size:14px} .dim{color:var(--ink3)}
+
+header{padding:calc(env(safe-area-inset-top) + 12px) 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--bg)}
+header .title{font-size:22px;font-weight:900;letter-spacing:-.3px}
+header .date{font-size:13px;color:var(--ink2)}
+.earn{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700;color:var(--green);font-size:16px;font-variant-numeric:tabular-nums}
+.who{display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:700;font-size:13px;line-height:1;cursor:pointer;white-space:nowrap}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--bg3);border:2px solid var(--amber);display:grid;place-items:center;overflow:hidden;font-size:18px}
+.avatar img{width:100%;height:100%;object-fit:cover}
+#driveBanner{position:fixed;inset:0;background:rgba(18,22,28,.96);z-index:1500;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+#driveBanner.on{display:flex}
+#driveBanner .ic{font-size:70px;margin-bottom:14px}
+#driveBanner .t{font-size:28px;font-weight:900;line-height:1.3;color:var(--amber2)}
+#driveBanner .s{font-size:20px;color:var(--ink);margin-top:10px}
+.gear{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--ink2);font-size:22px}
+
+main{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;padding:16px 16px 100px;display:none;-webkit-overflow-scrolling:touch}
+.screen.on{display:block}
+
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:10px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink3);font-size:12px;font-weight:500}
+nav button .ic{font-size:22px;line-height:1}
+nav button.on{color:var(--amber)}
+nav button .badge{position:absolute;margin-right:28px;margin-top:-4px;background:var(--amber);color:#1a1200;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:var(--tap);border-radius:var(--r);padding:0 18px;font-weight:700;font-size:18px;width:100%;transition:transform .08s}
+.btn:active{transform:scale(.97)}
+.btn.amber{background:var(--amber);color:#1a1200}
+.btn.green{background:var(--green);color:#03211a}
+.btn.ghost{background:var(--bg3);color:var(--ink);border:1px solid var(--line)}
+.btn.red{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.35)}
+.btn.sm{min-height:44px;font-size:15px;padding:0 14px;width:auto}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px} .row>*{flex:1}
+.stack{display:flex;flex-direction:column;gap:10px}
+
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.card.hero{background:linear-gradient(160deg,#2A2413,#1A2028 55%);border-color:#4a3d18}
+
+.stop{display:flex;gap:12px;align-items:flex-start;padding:14px 12px;border-bottom:1px solid var(--line)}
+.stop:last-child{border-bottom:0}
+.stop .num{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--bg3);font-weight:900;font-size:16px;color:var(--amber)}
+.stop.done .num{background:rgba(62,213,152,.15);color:var(--green)}
+.stop.skip .num{background:rgba(255,107,107,.12);color:var(--red)}
+.stop .body{flex:1;min-width:0}
+.stop .name{font-weight:700;font-size:17px}
+.stop .addr{color:var(--ink2);font-size:15px;margin-top:2px;word-break:break-word}
+.stop .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--ink3)}
+.stop .meta b{color:var(--amber2);font-weight:500}
+.stop.done .meta b{color:var(--green)}
+.stop .acts{display:flex;flex-direction:column;gap:6px}
+.icb{width:38px;height:38px;border-radius:10px;background:var(--bg3);display:grid;place-items:center;font-size:17px;color:var(--ink2)}
+.icb:active{background:var(--line)}
+.list{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+
+.empty{text-align:center;padding:40px 20px;color:var(--ink2)}
+.empty .big{font-size:44px;margin-bottom:10px}
+
+#map{height:46vh;border-radius:var(--r);border:1px solid var(--line);background:var(--bg3);margin-bottom:12px;z-index:0}
+.leaflet-container{font-family:inherit;background:#0e1217}
+.mk{background:var(--amber);color:#1a1200;font-weight:900;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;border:2px solid #1a1200;box-shadow:0 2px 8px rgba(0,0,0,.5);font-size:14px}
+.mk.done{background:var(--green)} .mk.me{background:var(--blue);color:#fff;width:22px;height:22px;font-size:11px}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:center}
+.kpi .v{font-size:24px;font-weight:900;font-variant-numeric:tabular-nums} .kpi .l{font-size:12px;color:var(--ink2);margin-top:2px}
+.kpi.g .v{color:var(--green)} .kpi.a .v{color:var(--amber)}
+
+.next .lbl{color:var(--amber2);font-weight:500;font-size:14px}
+.next .nm{font-size:30px;font-weight:900;line-height:1.15;margin:6px 0 4px}
+.next .ad{font-size:19px;color:var(--ink);line-height:1.35}
+.next .nt{margin-top:8px;color:var(--ink2);font-size:15px}
+.next .eta{margin-top:10px;display:flex;gap:16px;font-size:15px;color:var(--ink2)}
+.next .eta b{color:var(--ink)}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:1000}
+.modal.on{display:flex}
+.sheet{background:var(--bg2);width:100%;border-radius:22px 22px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;border-top:1px solid var(--line)}
+.sheet h2{font-size:20px;margin-bottom:6px}
+.handle{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.bigmoney{font-size:40px;font-weight:900;text-align:center;padding:16px;letter-spacing:-1px}
+.split{display:flex;justify-content:space-around;text-align:center;margin:6px 0 14px}
+.split .v{font-size:22px;font-weight:700} .split .l{font-size:13px;color:var(--ink2)}
+
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#fff;color:#111;padding:10px 18px;border-radius:999px;font-weight:500;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2000;max-width:90vw;text-align:center}
+#toast.on{opacity:1}
+.prog{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:var(--amber);width:0;transition:width .3s}
+.hist{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.hist:last-child{border-bottom:0}
+.hist b{color:var(--green)}
+details summary{cursor:pointer;color:var(--ink2);font-size:14px;padding:6px 0;list-style:none}
+details summary::before{content:"▸ ";} details[open] summary::before{content:"▾ ";}
+.chip{display:inline-block;background:var(--bg3);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--ink2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="title">סידור יום</div>
+    <div class="date" id="hdrDate"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="earn" id="hdrEarn">₪0</div>
+    <div class="who" onclick="openSettings()"><div class="avatar" id="hdrAvatar">👤</div><span id="hdrHello">שלום</span></div>
+    <button class="gear" onclick="openSettings()" aria-label="הגדרות">⚙</button>
+  </div>
+</header>
+
+<main>
+  <!-- סידור עבודה -->
+  <section class="screen on" id="s-day">
+    <div class="stack">
+      <div class="row">
+        <button class="btn amber" onclick="openAdd()">＋ הוסף לקוח</button>
+        <button class="btn ghost" onclick="openPaste()">📋 הדבק רשימה</button>
+      </div>
+      <div id="dayList"></div>
+      <div id="dayActions" style="display:none" class="stack">
+        <button class="btn green" id="btnOptimize" onclick="optimizeDay()">🧭 סדר לי את היום</button>
+        <button class="btn red sm" onclick="clearDay()">נקה את היום</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- מסלול -->
+  <section class="screen" id="s-route">
+    <div id="map"></div>
+    <div id="routeSummary" class="card" style="margin-bottom:12px;display:none"></div>
+    <div id="routeList"></div>
+  </section>
+
+  <!-- נהיגה -->
+  <section class="screen" id="s-drive">
+    <div id="driveBox"></div>
+  </section>
+
+  <!-- סיכום -->
+  <section class="screen" id="s-sum">
+    <div class="stack">
+      <div class="kpis" id="kpisToday"></div>
+      <div class="kpis" id="kpisPeriod"></div>
+      <div class="row">
+        <button class="btn ghost sm" onclick="shareDay()">📤 שתף סיכום יום</button>
+        <button class="btn ghost sm" onclick="exportCSV()">📊 ייצא אקסל</button>
+      </div>
+      <h3 style="margin-top:8px">היסטוריה</h3>
+      <div class="list" id="histList"></div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="on" data-s="day" onclick="go('day')"><span class="ic">📝</span>סידור<span class="badge" id="bPending" style="display:none"></span></button>
+  <button data-s="route" onclick="go('route')"><span class="ic">🗺</span>מסלול</button>
+  <button data-s="drive" onclick="go('drive')"><span class="ic">🚗</span>נהיגה</button>
+  <button data-s="sum" onclick="go('sum')"><span class="ic">💰</span>סיכום</button>
+</nav>
+
+<!-- מודל הוספה/עריכה -->
+<div class="modal" id="mAdd" onclick="if(event.target===this)closeM('mAdd')">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h2 id="addTitle">לקוח חדש</h2>
+    <input type="hidden" id="fId">
+    <label>שם הלקוח</label><input id="fName" placeholder="למשל: משה כהן">
+    <label>כתובת (רחוב, מספר, עיר)</label><input id="fAddr" placeholder="הרצל 12, חדרה">
+    <label>טלפון</label><input id="fPhone" type="tel" placeholder="050-0000000">
+    <label>הערה</label><input id="fNote" placeholder="קומה 3, להתקשר לפני">
+    <div class="row">
+      <div><label>לא לפני</label><input id="fFrom" type="time"></div>
+      <div><label>לא אחרי</label><input id="fTo" type="time"></div>
+    </div>
+    <div style="height:14px"></div>
+    <button class="btn amber" onclick="saveStop()">שמור לקוח</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" onclick="closeM('mAdd')">ביטול</button>
+  </div>
+</div>
+
+<!-- מודל הדבקה -->
+<div class="modal" id="mPaste" onclick="if(event.target===this)closeM('mPaste')">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h2>הדבק רשימת לקוחות</h2>
+    <p class="muted small" style="margin:4px 0 8px">כל שורה = לקוח. למשל: "משה כהן, הרצל 12 חדרה, 050-1234567". <span id="pasteAiNote"></span></p>
+    <textarea id="pasteBox" rows="8" placeholder="הדבק כאן את ההודעה מהמנהל..."></textarea>
+    <div style="height:14px"></div>
+    <button class="btn amber" id="btnParse" onclick="parsePaste()">פרק לכתובות</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" onclick="closeM('mPaste')">ביטול</button>
+  </div>
+</div>
+
+<!-- מודל מסירה -->
+<div class="modal" id="mPay" onclick="if(event.target===this)closeM('mPay')">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h2 id="payTitle">נמסר ושולם</h2>
+    <p class="muted small" id="paySub" style="margin:2px 0 6px"></p>
+    <input type="hidden" id="payId">
+    <label>כמה הלקוח שילם? (₪)</label>
+    <input id="payAmt" type="number" inputmode="decimal" placeholder="0" style="font-size:28px;font-weight:700;text-align:center" oninput="paySplit()">
+    <div class="split">
+      <div><div class="v" style="color:var(--green)" id="payMine">₪0</div><div class="l">שלי</div></div>
+      <div><div class="v" id="payCo">₪0</div><div class="l">לחברה</div></div>
+    </div>
+    <button class="btn green" onclick="confirmPay()">✓ אשר מסירה</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" onclick="closeM('mPay')">ביטול</button>
+  </div>
+</div>
+
+<!-- הגדרות -->
+<div class="modal" id="mSet" onclick="if(event.target===this)closeM('mSet')">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h2>הגדרות</h2>
+    <label>השם שלי (מוצג למעלה)</label><input id="setName" placeholder="גלית">
+    <label>תמונה שלי</label>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="avatar" id="setAvatarPrev" style="width:56px;height:56px">👤</div>
+      <input type="file" id="setPhoto" accept="image/*" onchange="pickPhoto(this)" style="flex:1">
+      <button class="btn ghost sm" onclick="removePhoto()">הסר</button>
+    </div>
+    <label>הודעת בטיחות קולית בתחילת כל נסיעה</label>
+    <select id="setVoice"><option value="1">כן</option><option value="0">לא</option></select>
+    <label>העמלה שלי למשלוח (₪)</label><input id="setShare" type="number" inputmode="numeric">
+    <label>זמן ממוצע אצל לקוח (דקות)</label><input id="setDwell" type="number" inputmode="numeric">
+    <label>אפליקציית ניווט</label>
+    <select id="setNav"><option value="waze">Waze</option><option value="gmaps">Google Maps</option></select>
+    <label>חיוג ללקוח עם מספר חסום (#31#)</label>
+    <select id="setHide"><option value="1">כן – להסתיר את המספר שלי</option><option value="0">לא</option></select>
+    <label>מספר לדיווח SMS אחרי כל מסירה</label>
+    <input id="setSmsTo" type="tel" placeholder="050-0000000 (ריק = בלי דיווח)" dir="ltr">
+    <label>נוסח ההודעה</label>
+    <input id="setSmsMsg" placeholder="המשלוח נמסר בהצלחה, בדרך ללקוח הבא">
+    <p class="dim small" style="margin:4px 0 0">אפשר לכתוב {name} או {address} בנוסח ויוחלפו בפרטי הלקוח. ההודעה נשלחת אוטומטית אחרי "נמסר ושולם".</p>
+    <details style="margin-top:14px">
+      <summary>אפשרויות מתקדמות (לא חובה)</summary>
+      <label>מפתח Google Maps – לתחזית פקקים לפי שעה</label>
+      <input id="setGoogle" placeholder="AIza..." dir="ltr">
+      <p class="dim small" style="margin:4px 0 0">בלי מפתח: זמני נסיעה רגילים (OSRM, חינם). עם מפתח: Routes API עם תחזית פקקים לשעת היציאה.</p>
+      <label>מפתח Anthropic – לפירוק חכם של רשימות מודבקות</label>
+      <input id="setAnthropic" placeholder="sk-ant-..." dir="ltr">
+      <p class="dim small" style="margin:4px 0 0">בלי מפתח: פירוק אוטומטי לפי שורות ופסיקים. עם מפתח: ה-AI מבין הודעות חופשיות מוואטסאפ.</p>
+    </details>
+    <div style="height:16px"></div>
+    <button class="btn amber" onclick="saveSettings()">שמור הגדרות</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" onclick="closeM('mSet')">סגור</button>
+    <p class="dim small" style="text-align:center;margin-top:14px">סידור יום · הנתונים נשמרים בטלפון בלבד</p>
+  </div>
+</div>
+
+<div id="driveBanner"><div class="ic">🚗</div><div class="t">הימנע משימוש בטלפון בזמן הנהיגה</div><div class="s">נסיעה טובה 💛</div></div>
+<div id="toast"></div>
+
+<script>
+/* ---------- מצב ואחסון ---------- */
+const DKEY='sy_data', GKEY='sy_geo';
+const todayKey=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+let DB=load();
+function load(){try{const x=JSON.parse(localStorage.getItem(DKEY));if(x&&x.days)return x}catch(e){}return{days:{},settings:{share:100,dwell:5,nav:'waze',google:'',anthropic:''}}}
+function save(){localStorage.setItem(DKEY,JSON.stringify(DB))}
+const S=()=>DB.settings;
+function day(k=todayKey()){if(!DB.days[k])DB.days[k]={stops:[],route:null};return DB.days[k]}
+const uid=()=>Math.random().toString(36).slice(2,9);
+let GEO={};try{GEO=JSON.parse(localStorage.getItem(GKEY)||'{}')}catch(e){}
+const ils=n=>'₪'+Math.round(n).toLocaleString('he-IL');
+const fmtT=d=>d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+const fmtMin=m=>m<60?Math.round(m)+' דק׳':Math.floor(m/60)+' ש׳ '+Math.round(m%60)+' דק׳';
+let toastT;function toast(s){const t=document.getElementById('toast');t.textContent=s;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2600)}
+function openM(id){document.getElementById(id).classList.add('on')} function closeM(id){document.getElementById(id).classList.remove('on')}
+
+/* ---------- ניווט בין מסכים ---------- */
+let cur='day';
+function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on',e.id==='s-'+s));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));render();if(s==='route')setTimeout(()=>{initMap();map.invalidateSize();drawMap()},50)}
+
+/* ---------- רינדור ---------- */
+function ordered(d=day()){const o=d.route?d.route.order:null;const st=d.stops.slice();if(!o)return st;const idx=id=>{const i=o.indexOf(id);return i<0?999:i};return st.sort((a,b)=>idx(a.id)-idx(b.id))}
+function earningsOf(d){let mine=0,co=0,n=0;d.stops.forEach(s=>{if(s.status==='delivered'){n++;mine+=S().share;co+=Math.max(0,(s.paid||0)-S().share)}});return{mine,co,n,total:mine+co}}
+function render(){
+  const d=day();const e=earningsOf(d);
+  document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('hdrEarn').textContent=ils(e.mine);
+  document.getElementById('hdrHello').textContent='שלום '+(S().name||'גלית');
+  const av=document.getElementById('hdrAvatar');av.innerHTML=DB.photo?'<img src="'+DB.photo+'" alt="">':'👤';
+  const pend=d.stops.filter(s=>s.status==='pending').length;
+  const bp=document.getElementById('bPending');bp.style.display=pend?'':'none';bp.textContent=pend;
+  renderDay(d);renderRouteList(d);renderDrive(d);renderSum();
+}
+function stopHTML(s,i,mode){
+  const cls=s.status==='delivered'?'done':s.status==='skipped'?'skip':'';
+  const meta=[];
+  if(s.eta&&s.status==='pending')meta.push('<span>הגעה <b>'+s.eta+'</b></span>');
+  if(s.from||s.to)meta.push('<span>חלון '+(s.from||'')+'–'+(s.to||'')+'</span>');
+  if(s.status==='delivered')meta.push('<span>נמסר · שולם <b>'+ils(s.paid||0)+'</b></span>');
+  if(s.status==='skipped')meta.push('<span style="color:var(--red)">לא היה בבית</span>');
+  if(s.note)meta.push('<span>'+esc(s.note)+'</span>');
+  if(!s.lat&&mode==='day')meta.push('<span class="dim">⌖ טרם אותר</span>');
+  const acts=mode==='day'
+    ?`<button class="icb" onclick="openAdd('${s.id}')">✎</button><button class="icb" onclick="delStop('${s.id}')">🗑</button>`
+    :`<button class="icb" onclick="moveStop('${s.id}',-1)">▲</button><button class="icb" onclick="moveStop('${s.id}',1)">▼</button>`;
+  return `<div class="stop ${cls}"><div class="num">${s.status==='delivered'?'✓':i+1}</div><div class="body"><div class="name">${esc(s.name||'לקוח')}</div><div class="addr">${esc(s.address)}</div><div class="meta">${meta.join('')}</div></div><div class="acts">${acts}</div></div>`;
+}
+function renderDay(d){
+  const el=document.getElementById('dayList');const st=ordered(d);
+  document.getElementById('dayActions').style.display=st.length?'':'none';
+  if(!st.length){el.innerHTML='<div class="empty"><div class="big">📦</div>עוד אין לקוחות להיום.<br>הוסף לקוח או הדבק את הרשימה מהמנהל.</div>';return}
+  el.innerHTML='<div class="list">'+st.map((s,i)=>stopHTML(s,i,'day')).join('')+'</div>';
+  document.getElementById('btnOptimize').textContent=d.route?'🧭 סדר מחדש את היום':'🧭 סדר לי את היום';
+}
+function renderRouteList(d){
+  const el=document.getElementById('routeList');const sm=document.getElementById('routeSummary');const st=ordered(d);
+  if(!d.route){sm.style.display='none';el.innerHTML='<div class="empty"><div class="big">🧭</div>עדיין אין מסלול.<br>במסך "סידור" לחץ על "סדר לי את היום".</div>';return}
+  sm.style.display='';const r=d.route;
+  sm.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><div><b style="font-size:20px">${(r.km).toFixed(1)} ק"מ</b> <span class="muted">· ${fmtMin(r.min)} נסיעה</span></div><span class="chip">${r.traffic?'עם פקקים':'זמן רגיל'}</span></div><div class="small muted" style="margin-top:4px">סיום משוער ${r.endTime} · ${st.filter(s=>s.status==='pending').length} תחנות נותרו</div>`;
+  el.innerHTML='<div class="list">'+st.map((s,i)=>stopHTML(s,i,'route')).join('')+'</div>';
+}
+function nextStop(d){return ordered(d).find(s=>s.status==='pending')}
+function renderDrive(d){
+  const el=document.getElementById('driveBox');const st=ordered(d);const n=nextStop(d);
+  const done=st.filter(s=>s.status!=='pending').length;
+  if(!st.length){el.innerHTML='<div class="empty"><div class="big">🚗</div>אין לקוחות להיום.</div>';return}
+  if(!n){const e=earningsOf(d);el.innerHTML=`<div class="card hero" style="text-align:center;padding:30px"><div style="font-size:50px">🏁</div><h2 style="margin:8px 0">סיימת את היום!</h2><div class="muted">${e.n} משלוחים · הרווחת <b style="color:var(--green)">${ils(e.mine)}</b></div><div style="height:16px"></div><button class="btn ghost" onclick="go('sum')">לסיכום</button></div>`;return}
+  const i=st.indexOf(n);
+  const after=st.slice(i+1).filter(s=>s.status==='pending').slice(0,2);
+  el.innerHTML=`
+  <div class="small muted" style="display:flex;justify-content:space-between"><span>תחנה ${i+1} מתוך ${st.length}</span><span>${done} הושלמו</span></div>
+  <div class="prog"><i style="width:${st.length?done/st.length*100:0}%"></i></div>
+  <div class="card hero next" style="margin-top:8px">
+    <div class="lbl">התחנה הבאה</div>
+    <div class="nm">${esc(n.name||'לקוח')}</div>
+    <div class="ad">${esc(n.address)}</div>
+    ${n.note?`<div class="nt">📝 ${esc(n.note)}</div>`:''}
+    <div class="eta">${n.eta?`<span>הגעה משוערת <b>${n.eta}</b></span>`:''}${(n.from||n.to)?`<span>חלון <b>${n.from||''}–${n.to||''}</b></span>`:''}</div>
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn amber" style="min-height:66px;font-size:21px" onclick="navigateTo('${n.id}')">🧭 נווט ב-${S().nav==='waze'?'Waze':'Google Maps'}</button>
+  <div style="height:10px"></div>
+  <div class="row">
+    <button class="btn ghost" onclick="callStop('${n.id}')" ${n.phone?'':'disabled'}>📞 חייג</button>
+    <button class="btn red" onclick="skipStop('${n.id}')">לא בבית</button>
+  </div>
+  <div style="height:10px"></div>
+  <button class="btn green" style="min-height:66px;font-size:21px" onclick="openPay('${n.id}')">✓ נמסר ושולם</button>
+  ${after.length?`<div style="height:18px"></div><div class="small muted" style="margin-bottom:6px">אחר כך</div><div class="list">${after.map(s=>`<div class="stop"><div class="num" style="width:30px;height:30px;font-size:13px">${st.indexOf(s)+1}</div><div class="body"><div class="name" style="font-size:15px">${esc(s.name||'לקוח')}</div><div class="addr" style="font-size:14px">${esc(s.address)}${s.eta?' · '+s.eta:''}</div></div></div>`).join('')}</div>`:''}`;
+}
+function renderSum(){
+  const t=earningsOf(day());
+  document.getElementById('kpisToday').innerHTML=`<div class="kpi g"><div class="v">${ils(t.mine)}</div><div class="l">הרווח שלי היום</div></div><div class="kpi a"><div class="v">${t.n}</div><div class="l">משלוחים היום</div></div><div class="kpi"><div class="v">${ils(t.co)}</div><div class="l">לחברה היום</div></div>`;
+  const now=new Date();const wk=new Date(now);wk.setDate(now.getDate()-((now.getDay()+7)%7));const wkKey=wk.toISOString().slice(0,10);const moKey=todayKey().slice(0,7);
+  let w=0,wn=0,m=0,mn=0;
+  Object.entries(DB.days).forEach(([k,d])=>{const e=earningsOf(d);if(k>=wkKey){w+=e.mine;wn+=e.n}if(k.startsWith(moKey)){m+=e.mine;mn+=e.n}});
+  document.getElementById('kpisPeriod').innerHTML=`<div class="kpi"><div class="v">${ils(w)}</div><div class="l">השבוע · ${wn} משלוחים</div></div><div class="kpi" style="grid-column:span 2"><div class="v">${ils(m)}</div><div class="l">החודש · ${mn} משלוחים</div></div>`;
+  const keys=Object.keys(DB.days).sort().reverse().filter(k=>DB.days[k].stops.length);
+  document.getElementById('histList').innerHTML=keys.length?keys.map(k=>{const e=earningsOf(DB.days[k]);const dt=new Date(k+'T12:00:00');return `<div class="hist"><div><div>${dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'numeric'})}</div><div class="small dim">${e.n} משלוחים · גבייה ${ils(e.total)}</div></div><b>${ils(e.mine)}</b></div>`}).join(''):'<div class="empty small">אין עדיין היסטוריה</div>';
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+/* ---------- לקוחות ---------- */
+function openAdd(id){
+  const s=id?day().stops.find(x=>x.id===id):null;
+  document.getElementById('addTitle').textContent=s?'עריכת לקוח':'לקוח חדש';
+  fId.value=s?s.id:'';fName.value=s?.name||'';fAddr.value=s?.address||'';fPhone.value=s?.phone||'';fNote.value=s?.note||'';fFrom.value=s?.from||'';fTo.value=s?.to||'';
+  openM('mAdd');setTimeout(()=>(s?fName:fAddr).focus(),150);
+}
+function saveStop(){
+  const a=fAddr.value.trim();if(!a){toast('צריך כתובת');return}
+  const d=day();let s=d.stops.find(x=>x.id===fId.value);
+  if(!s){s={id:uid(),status:'pending'};d.stops.push(s)}
+  if(s.address!==a){s.lat=null;s.lng=null;d.route=null}
+  Object.assign(s,{name:fName.value.trim(),address:a,phone:fPhone.value.trim(),note:fNote.value.trim(),from:fFrom.value,to:fTo.value});
+  save();closeM('mAdd');render();geocodeStop(s).then(()=>{save();render()});
+}
+function delStop(id){const d=day();d.stops=d.stops.filter(s=>s.id!==id);if(d.route)d.route.order=d.route.order.filter(x=>x!==id);save();render()}
+function clearDay(){if(!confirm('למחוק את כל הלקוחות של היום?'))return;DB.days[todayKey()]={stops:[],route:null};save();render()}
+function moveStop(id,dir){const d=day();const o=ordered(d).map(s=>s.id);const i=o.indexOf(id);const j=i+dir;if(j<0||j>=o.length)return;[o[i],o[j]]=[o[j],o[i]];if(!d.route)d.route={order:o,km:0,min:0,endTime:'—'};else d.route.order=o;save();render();drawMap()}
+function callStop(id){const s=day().stops.find(x=>x.id===id);if(!s?.phone)return;const num=s.phone.replace(/[^\d+]/g,'');const full=(S().hideId===false?'':'#31#')+num;if(window.Android)Android.dial(full);else location.href='tel:'+encodeURIComponent(full)}
+function skipStop(id){const d=day();const s=d.stops.find(x=>x.id===id);s.status='skipped';const o=ordered(d).map(x=>x.id).filter(x=>x!==id);o.push(id);if(d.route)d.route.order=o;save();render();toast('הועבר לסוף הרשימה. אפשר להחזיר מ"סידור"')}
+const SAFE_MSG='הימנע משימוש בטלפון בזמן הנהיגה, נסיעה טובה';
+function speak(t){if(window.Android&&Android.speak){Android.speak(t);return}try{const u=new SpeechSynthesisUtterance(t);u.lang='he-IL';const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.startsWith('he'));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function navigateTo(id){
+  if(S().voice!==false){const b=document.getElementById('driveBanner');b.classList.add('on');speak(SAFE_MSG);setTimeout(()=>b.classList.remove('on'),4500);setTimeout(()=>openNav(id),2200)}else openNav(id);
+}
+function openNav(id){
+  const s=day().stops.find(x=>x.id===id);if(!s)return;
+  let url;
+  if(S().nav==='gmaps')url=s.lat?`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(s.address)}&travelmode=driving`;
+  else url=s.lat?`https://waze.com/ul?ll=${s.lat},${s.lng}&navigate=yes`:`https://waze.com/ul?q=${encodeURIComponent(s.address)}&navigate=yes`;
+  if(window.Android)Android.openUrl(url);else window.open(url,'_blank');
+}
+
+/* ---------- מסירה ותשלום ---------- */
+function openPay(id){const s=day().stops.find(x=>x.id===id);payId.value=id;payTitle.textContent='נמסר ל'+(s.name||'לקוח');paySub.textContent=s.address;payAmt.value='';paySplit();openM('mPay');setTimeout(()=>payAmt.focus(),150)}
+function paySplit(){const v=+payAmt.value||0;payMine.textContent=ils(Math.min(v,S().share)||S().share);payCo.textContent=ils(Math.max(0,v-S().share))}
+function confirmPay(){const d=day();const s=d.stops.find(x=>x.id===payId.value);const v=+payAmt.value;if(!(v>=0)||payAmt.value===''){toast('הזן סכום');return}
+  s.status='delivered';s.paid=v;s.deliveredAt=new Date().toISOString();save();closeM('mPay');render();drawMap();
+  toast('נרשם! '+ils(S().share)+' שלך · '+ils(Math.max(0,v-S().share))+' לחברה');
+  if(navigator.vibrate)navigator.vibrate([40,40,40]);
+  sendReport(s,d);
+}
+function sendReport(s,d){
+  if(!S().smsTo)return;
+  const nx=nextStop(d);
+  let msg=(S().smsMsg||'המשלוח נמסר בהצלחה, בדרך ללקוח הבא').replace('{name}',s.name||'').replace('{address}',s.address||'');
+  if(!nx)msg+=' (זה היה המשלוח האחרון להיום)';
+  const num=S().smsTo.replace(/[^\d+]/g,'');
+  if(window.Android){Android.sendSms(num,msg);toast('דיווח SMS נשלח')}else setTimeout(()=>{location.href='sms:'+num+'?body='+encodeURIComponent(msg)},400);
+}
+
+/* ---------- הדבקת רשימה ---------- */
+function openPaste(){pasteBox.value='';pasteAiNote.textContent=S().anthropic?'הפירוק נעשה עם AI.':'';openM('mPaste');setTimeout(()=>pasteBox.focus(),150)}
+async function parsePaste(){
+  const txt=pasteBox.value.trim();if(!txt){toast('אין טקסט');return}
+  const b=document.getElementById('btnParse');b.disabled=true;b.textContent='מפרק...';
+  let items=[];
+  try{ if(S().anthropic) items=await aiParse(txt); }catch(e){toast('ה-AI נכשל, מפרק ידנית');}
+  if(!items.length) items=basicParse(txt);
+  b.disabled=false;b.textContent='פרק לכתובות';
+  if(!items.length){toast('לא זוהו כתובות');return}
+  const d=day();items.forEach(it=>d.stops.push({id:uid(),status:'pending',name:it.name||'',address:it.address||'',phone:it.phone||'',note:it.note||'',from:it.from||'',to:it.to||''}));
+  d.route=null;save();closeM('mPaste');render();toast('נוספו '+items.length+' לקוחות');
+  geocodeAll();
+}
+function basicParse(txt){
+  const out=[];const phoneRe=/0(?:5\d|[2-9])[\-\s]?\d{3}[\-\s]?\d{4}/;
+  txt.split(/\n+/).map(l=>l.replace(/^\s*[\d\.\-\)•*]+\s*/,'').trim()).filter(l=>l.length>3).forEach(l=>{
+    let phone='';const pm=l.match(phoneRe);if(pm){phone=pm[0];l=l.replace(pm[0],'').replace(/[,\-–|]\s*$/,'').trim()}
+    const parts=l.split(/\s*[,|–]\s*|\s+-\s+/).filter(Boolean);
+    let name='',address=l,note='';
+    if(parts.length>=2){const hasNum=p=>/\d/.test(p);
+      if(!hasNum(parts[0])&&hasNum(parts.slice(1).join(' '))){name=parts[0];address=parts.slice(1,3).join(', ');note=parts.slice(3).join(', ')}
+      else{address=parts.slice(0,2).join(', ');note=parts.slice(2).join(', ')}}
+    out.push({name,address,phone,note});
+  });return out;
+}
+async function aiParse(txt){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S().anthropic,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:'You extract delivery stops from Hebrew/English free text. Respond ONLY with a JSON array, no prose, no markdown. Each item: {"name":"","address":"street number, city (Israel)","phone":"","note":"","from":"HH:MM or empty","to":"HH:MM or empty"}. Keep addresses in Hebrew as written; include the city.',messages:[{role:'user',content:txt}]})});
+  const j=await r.json();const t=(j.content||[]).map(c=>c.text||'').join('');
+  return JSON.parse(t.replace(/```json|```/g,'').trim());
+}
+
+/* ---------- גיאוקודינג ---------- */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function geocodeStop(s){
+  if(s.lat)return true;const key=s.address.trim().toLowerCase();
+  if(GEO[key]){s.lat=GEO[key][0];s.lng=GEO[key][1];return true}
+  const tryQ=async q=>{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=il&accept-language=he&q=${encodeURIComponent(q)}`);const j=await r.json();return j[0]};
+  let hit=null;try{hit=await tryQ(s.address);if(!hit){const q2=s.address.replace(/\b(קומה|דירה|כניסה)\b.*$/,'').trim();if(q2!==s.address)hit=await tryQ(q2)}}catch(e){}
+  if(hit){s.lat=+hit.lat;s.lng=+hit.lon;GEO[key]=[s.lat,s.lng];localStorage.setItem(GKEY,JSON.stringify(GEO));return true}
+  return false;
+}
+async function geocodeAll(){const d=day();let miss=[];for(const s of d.stops){if(s.lat)continue;const ok=await geocodeStop(s);if(!ok)miss.push(s.name||s.address);save();render();await sleep(1100)}if(miss.length)toast('לא אותרו: '+miss.join(', ')+' – בדוק כתובת');return miss}
+
+/* ---------- מיקום ---------- */
+function getPos(){return new Promise((res,rej)=>{if(!navigator.geolocation)return rej('אין GPS');navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),e=>rej(e.message),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})})}
+
+/* ---------- מטריצת זמנים ---------- */
+async function matrixOSRM(pts){
+  const coords=pts.map(p=>p.lng+','+p.lat).join(';');
+  const r=await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`);const j=await r.json();
+  if(j.code!=='Ok')throw new Error('OSRM');return{dur:j.durations,dist:j.distances,traffic:false};
+}
+async function matrixGoogle(pts){
+  const wp=pts.map(p=>({waypoint:{location:{latLng:{latitude:p.lat,longitude:p.lng}}}}));
+  const r=await fetch('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':S().google,'X-Goog-FieldMask':'originIndex,destinationIndex,duration,distanceMeters,condition'},
+    body:JSON.stringify({origins:wp,destinations:wp,travelMode:'DRIVE',routingPreference:'TRAFFIC_AWARE',departureTime:new Date(Date.now()+60000).toISOString()})});
+  const j=await r.json();if(!Array.isArray(j))throw new Error('Google');
+  const n=pts.length,dur=Array.from({length:n},()=>Array(n).fill(1e9)),dist=Array.from({length:n},()=>Array(n).fill(0));
+  j.forEach(c=>{dur[c.originIndex][c.destinationIndex]=parseFloat(c.duration||'0');dist[c.originIndex][c.destinationIndex]=c.distanceMeters||0});
+  return{dur,dist,traffic:true};
+}
+
+/* ---------- אופטימיזציה ---------- */
+const toMin=t=>t?(+t.slice(0,2))*60+(+t.slice(3,5)):null;
+function simulate(order,dur,stops,startMin,dwell){ // order = indices into stops (1-based in matrix), returns {cost,time,late}
+  let t=startMin,prev=0,cost=0,late=0;
+  for(const k of order){const s=stops[k];const i=k+1;const travel=dur[prev][i]/60;t+=travel;cost+=travel;
+    const f=toMin(s.from),to=toMin(s.to);
+    if(f!==null&&t<f){cost+=(f-t)*0.7;t=f} // המתנה
+    if(to!==null&&t>to){late++;cost+=(t-to)*3+60} // איחור – עונש גדול
+    t+=dwell;prev=i}
+  return{cost,time:t,late};
+}
+function solve(dur,stops,startMin,dwell){
+  const n=stops.length;let best=null;
+  // נקודת התחלה: nearest neighbor מכמה זרעים + 2-opt
+  const seeds=[];const nn=start=>{const left=new Set([...Array(n).keys()]);const o=[];let prev=0;if(start!==null){o.push(start);left.delete(start);prev=start+1}
+    while(left.size){let b=null,bd=1e18;for(const k of left){let d=dur[prev][k+1];const to=toMin(stops[k].to);if(to!==null)d-=Math.max(0,(24*60-to))*2;if(d<bd){bd=d;b=k}}o.push(b);left.delete(b);prev=b+1}return o};
+  seeds.push(nn(null));for(let s=0;s<Math.min(n,6);s++)seeds.push(nn(s));
+  const cost=o=>simulate(o,dur,stops,startMin,dwell).cost;
+  for(let o of seeds){let c=cost(o),imp=true;
+    while(imp){imp=false;for(let i=0;i<n-1;i++)for(let j=i+1;j<n;j++){const o2=o.slice(0,i).concat(o.slice(i,j+1).reverse(),o.slice(j+1));const c2=cost(o2);if(c2<c-1e-6){o=o2;c=c2;imp=true}}
+      for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(i===j)continue;const o2=o.slice();const [x]=o2.splice(i,1);o2.splice(j,0,x);const c2=cost(o2);if(c2<c-1e-6){o=o2;c=c2;imp=true}}}
+    if(!best||c<best.cost)best={order:o,cost:c}}
+  return best.order;
+}
+async function optimizeDay(){
+  const d=day();const pending=d.stops.filter(s=>s.status==='pending');
+  if(!pending.length){toast('אין תחנות פתוחות');return}
+  const b=document.getElementById('btnOptimize');b.disabled=true;
+  try{
+    b.textContent='מאתר כתובות...';const miss=await geocodeAll();
+    const ok=pending.filter(s=>s.lat);if(!ok.length)throw new Error('לא אותרה אף כתובת');
+    b.textContent='מאתר אותך...';let me;try{me=await getPos()}catch(e){toast('אין GPS – מתחיל מהתחנה הראשונה');me={lat:ok[0].lat,lng:ok[0].lng}}
+    b.textContent='מחשב זמני נסיעה...';const pts=[me,...ok];
+    let M;try{M=S().google?await matrixGoogle(pts):await matrixOSRM(pts)}catch(e){if(S().google){toast('Google נכשל – משתמש ב-OSRM');M=await matrixOSRM(pts)}else throw e}
+    b.textContent='מסדר את היום...';await sleep(30);
+    const now=new Date();const startMin=now.getHours()*60+now.getMinutes();const dwell=+S().dwell||5;
+    const order=solve(M.dur,ok,startMin,dwell);
+    // ETA + סכומים
+    let t=startMin,prev=0,km=0,min=0;
+    order.forEach(k=>{const i=k+1;const tr=M.dur[prev][i]/60;km+=(M.dist[prev][i]||0)/1000;min+=tr;t+=tr;const f=toMin(ok[k].from);if(f!==null&&t<f)t=f;const h=Math.floor(t/60)%24,m=Math.round(t%60);ok[k].eta=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');t+=dwell;prev=i});
+    const endH=Math.floor(t/60)%24,endM=Math.round(t%60);
+    const done=d.stops.filter(s=>s.status!=='pending').map(s=>s.id);
+    const unloc=pending.filter(s=>!s.lat).map(s=>s.id);
+    d.route={order:[...done,...order.map(k=>ok[k].id),...unloc],km,min,endTime:String(endH).padStart(2,'0')+':'+String(endM).padStart(2,'0'),traffic:M.traffic,me,at:Date.now()};
+    save();render();go('route');toast('המסלול מוכן: '+km.toFixed(0)+' ק"מ, '+fmtMin(min)+' נסיעה');
+    const late=simulate(order,M.dur,ok,startMin,dwell).late;if(late)setTimeout(()=>toast('שים לב: '+late+' תחנות עלולות לאחר לחלון הזמן'),2800);
+  }catch(e){toast('שגיאה: '+(e.message||e))}
+  b.disabled=false;b.textContent='🧭 סדר מחדש את היום';
+}
+
+/* ---------- מפה ---------- */
+let map,layer;
+function initMap(){if(map)return;map=L.map('map',{zoomControl:false,attributionControl:false}).setView([32.6,35.3],9);L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);layer=L.layerGroup().addTo(map)}
+async function drawMap(){
+  if(!map)return;layer.clearLayers();const d=day();const st=ordered(d).filter(s=>s.lat);if(!st.length)return;
+  const pts=[];
+  if(d.route?.me){pts.push([d.route.me.lat,d.route.me.lng]);L.marker([d.route.me.lat,d.route.me.lng],{icon:L.divIcon({className:'',html:'<div class="mk me">אני</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(layer)}
+  st.forEach(s=>{const i=ordered(d).indexOf(s)+1;pts.push([s.lat,s.lng]);L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="mk ${s.status==='delivered'?'done':''}">${s.status==='delivered'?'✓':i}</div>`,iconSize:[30,30],iconAnchor:[15,15]})}).addTo(layer).bindPopup(`<b>${esc(s.name||'לקוח')}</b><br>${esc(s.address)}`)});
+  map.fitBounds(pts,{padding:[30,30]});
+  const seq=[];if(d.route?.me)seq.push(d.route.me);st.filter(s=>s.status==='pending').forEach(s=>seq.push({lat:s.lat,lng:s.lng}));
+  if(seq.length>=2){try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${seq.map(p=>p.lng+','+p.lat).join(';')}?overview=simplified&geometries=geojson`);const j=await r.json();if(j.code==='Ok')L.geoJSON(j.routes[0].geometry,{style:{color:'#F5A524',weight:4,opacity:.85}}).addTo(layer)}catch(e){L.polyline(seq.map(p=>[p.lat,p.lng]),{color:'#F5A524',weight:3,dashArray:'6 6'}).addTo(layer)}}
+}
+
+/* ---------- סיכום / ייצוא ---------- */
+function shareDay(){const d=day();const e=earningsOf(d);const lines=ordered(d).filter(s=>s.status==='delivered').map((s,i)=>`${i+1}. ${s.name||'לקוח'} – ${s.address} – שולם ${ils(s.paid||0)}`);
+  const txt=`סיכום יום ${new Date().toLocaleDateString('he-IL')}\n${e.n} משלוחים\nגבייה כוללת: ${ils(e.total)}\nשלי: ${ils(e.mine)}\nלחברה: ${ils(e.co)}\n\n${lines.join('\n')}`;
+  if(window.Android)Android.share(txt);else if(navigator.share)navigator.share({text:txt}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank')}
+function exportCSV(){const rows=[['תאריך','שם','כתובת','טלפון','סטטוס','שולם','שלי','לחברה','שעת מסירה']];
+  Object.keys(DB.days).sort().forEach(k=>DB.days[k].stops.forEach(s=>{const mine=s.status==='delivered'?S().share:0;rows.push([k,s.name,s.address,s.phone,s.status==='delivered'?'נמסר':s.status==='skipped'?'לא בבית':'ממתין',s.paid||'',mine||'',s.status==='delivered'?Math.max(0,(s.paid||0)-S().share):'',s.deliveredAt?fmtT(new Date(s.deliveredAt)):''])}));
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  if(window.Android){Android.saveCsv('sidur-yom-'+todayKey()+'.csv',csv);return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='sidur-yom-'+todayKey()+'.csv';a.click()}
+
+/* ---------- הגדרות ---------- */
+function pickPhoto(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sz=240;c.width=c.height=sz;const x=c.getContext('2d');const m=Math.min(im.width,im.height);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,sz,sz);DB.photo=c.toDataURL('image/jpeg',.85);save();setAvatarPrev.innerHTML='<img src="'+DB.photo+'">';render();toast('התמונה נשמרה')};im.src=r.result};r.readAsDataURL(f)}
+function removePhoto(){delete DB.photo;save();setAvatarPrev.innerHTML='👤';render()}
+function openSettings(){setName.value=S().name||'גלית';setVoice.value=S().voice===false?'0':'1';setAvatarPrev.innerHTML=DB.photo?'<img src="'+DB.photo+'">':'👤';setShare.value=S().share;setDwell.value=S().dwell;setNav.value=S().nav;setHide.value=S().hideId===false?'0':'1';setSmsTo.value=S().smsTo||'';setSmsMsg.value=S().smsMsg||'המשלוח נמסר בהצלחה, בדרך ללקוח הבא';setGoogle.value=S().google||'';setAnthropic.value=S().anthropic||'';openM('mSet')}
+function saveSettings(){DB.settings={name:setName.value.trim()||'גלית',voice:setVoice.value==='1',share:+setShare.value||100,dwell:+setDwell.value||5,nav:setNav.value,hideId:setHide.value==='1',smsTo:setSmsTo.value.trim(),smsMsg:setSmsMsg.value.trim(),google:setGoogle.value.trim(),anthropic:setAnthropic.value.trim()};save();closeM('mSet');render();toast('נשמר')}
+
+/* ---------- PWA manifest ---------- */
+(function(){const m={name:'סידור יום',short_name:'סידור יום',start_url:location.href.split('#')[0],display:'standalone',background_color:'#12161C',theme_color:'#12161C',dir:'rtl',lang:'he',icons:[{src:document.querySelector('link[rel=icon]').href,sizes:'512x512',type:'image/svg+xml'}]};
+  const l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/json'}));document.head.appendChild(l)})();
+
+render();
+</script>
+</body>
+</html>
