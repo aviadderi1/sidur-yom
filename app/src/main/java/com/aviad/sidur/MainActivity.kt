@@ -128,6 +128,8 @@ class MainActivity : AppCompatActivity() {
             if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "safe")
         } }
 
+        @JavascriptInterface fun versionCode(): Int = try { packageManager.getPackageInfo(packageName, 0).longVersionCode.toInt() } catch (e: Exception) { 0 }
+
         @JavascriptInterface fun toast(s: String) { runOnUiThread { Toast.makeText(this@MainActivity, s, Toast.LENGTH_SHORT).show() } }
     }
 }

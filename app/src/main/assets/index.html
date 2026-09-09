@@ -142,6 +142,7 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
   </div>
 </header>
 
+<div id="updBar" style="display:none;background:var(--amber);color:#1a1200;padding:10px 16px;font-weight:700;align-items:center;justify-content:space-between;gap:10px"><span id="updTxt">יש גרסה חדשה</span><button class="btn sm" style="background:#1a1200;color:var(--amber2)" id="updBtn">עדכן עכשיו</button></div>
 <main>
   <!-- סידור עבודה -->
   <section class="screen on" id="s-day">
@@ -591,7 +592,16 @@ function saveSettings(){DB.settings={name:setName.value.trim()||'גלית',voice
 (function(){const m={name:'סידור יום',short_name:'סידור יום',start_url:location.href.split('#')[0],display:'standalone',background_color:'#12161C',theme_color:'#12161C',dir:'rtl',lang:'he',icons:[{src:document.querySelector('link[rel=icon]').href,sizes:'512x512',type:'image/svg+xml'}]};
   const l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/json'}));document.head.appendChild(l)})();
 
-render();
+/* ---------- בדיקת עדכון (APK מ-GitHub Releases) ---------- */
+const UPDATE_REPO='aviadderi1/sidur-yom';
+async function checkUpdate(){
+  if(!window.Android||!Android.versionCode)return;
+  try{const cur=+Android.versionCode();const r=await fetch('https://api.github.com/repos/'+UPDATE_REPO+'/releases/latest',{cache:'no-store'});if(!r.ok)return;const j=await r.json();
+    const n=+(String(j.tag_name||'').match(/\d+/)||[0])[0];const apk=(j.assets||[]).find(a=>/\.apk$/i.test(a.name));
+    if(n>cur&&apk){const b=document.getElementById('updBar');b.style.display='flex';document.getElementById('updTxt').textContent='יש גרסה חדשה (1.'+n+')';document.getElementById('updBtn').onclick=()=>Android.openUrl(apk.browser_download_url)}
+  }catch(e){}
+}
+render();checkUpdate();
 </script>
 </body>
 </html>
