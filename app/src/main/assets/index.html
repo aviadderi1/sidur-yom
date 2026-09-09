@@ -95,7 +95,14 @@ nav button .badge{position:absolute;margin-right:28px;margin-top:-4px;background
 .leaflet-control-attribution{background:rgba(18,22,28,.7)!important;color:var(--ink3)!important;font-size:10px}
 .leaflet-control-attribution a{color:var(--ink3)!important}
 .mk{background:var(--amber);color:#1a1200;font-weight:900;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;border:2px solid #1a1200;box-shadow:0 2px 8px rgba(0,0,0,.5);font-size:14px}
-.mk.done{background:var(--green)} .mk.me{background:var(--blue);color:#fff;width:22px;height:22px;font-size:11px}
+.mk.done{background:var(--green)}
+.live{position:relative;width:18px;height:18px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.live::after{content:'';position:absolute;inset:-14px;border-radius:50%;background:rgba(90,169,255,.35);animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.4);opacity:0}}
+.mapbtn{position:absolute;left:12px;bottom:12px;z-index:500;width:46px;height:46px;border-radius:50%;background:var(--bg2);border:1px solid var(--line);display:grid;place-items:center;font-size:22px;color:var(--blue);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.mapbtn.on{background:var(--blue);color:#fff}
+#mapWrap{position:relative;margin-bottom:12px}
+#mapWrap #map{margin-bottom:0} .mk.me{background:var(--blue);color:#fff;width:22px;height:22px;font-size:11px}
 
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .kpi{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:center}
@@ -161,7 +168,7 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
 
   <!-- מסלול -->
   <section class="screen" id="s-route">
-    <div id="map"></div>
+    <div id="mapWrap"><div id="map"></div><button class="mapbtn" id="btnLocate" onclick="toggleFollow()" title="המיקום שלי">◎</button></div>
     <div id="routeSummary" class="card" style="margin-bottom:12px;display:none"></div>
     <div id="routeList"></div>
   </section>
@@ -311,7 +318,7 @@ function openM(id){document.getElementById(id).classList.add('on')} function clo
 
 /* ---------- ניווט בין מסכים ---------- */
 let cur='day';
-function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on',e.id==='s-'+s));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));render();if(s==='route')setTimeout(()=>{initMap();map.invalidateSize();drawMap()},50)}
+function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on',e.id==='s-'+s));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));render();if(s==='route'){setTimeout(()=>{initMap();map.invalidateSize();drawMap();startLive()},50)}else stopLive()}
 
 /* ---------- רינדור ---------- */
 function ordered(d=day()){const o=d.route?d.route.order:null;const st=d.stops.slice();if(!o)return st;const idx=id=>{const i=o.indexOf(id);return i<0?999:i};return st.sort((a,b)=>idx(a.id)-idx(b.id))}
@@ -561,14 +568,26 @@ async function optimizeDay(){
 }
 
 /* ---------- מפה ---------- */
-let map,layer;
-function initMap(){if(map)return;map=L.map('map',{zoomControl:false,attributionControl:true}).setView([32.6,35.3],9);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);layer=L.layerGroup().addTo(map)}
+let map,layer,liveMk,liveCircle,watchId=null,follow=true,lastPos=null;
+function startLive(){
+  if(!navigator.geolocation||watchId!==null)return;
+  watchId=navigator.geolocation.watchPosition(p=>{
+    lastPos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};
+    if(!map)return;const ll=[lastPos.lat,lastPos.lng];
+    if(!liveMk){liveMk=L.marker(ll,{icon:L.divIcon({className:'',html:'<div class="live"></div>',iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000}).addTo(map);liveCircle=L.circle(ll,{radius:lastPos.acc,color:'#5AA9FF',weight:1,fillOpacity:.08}).addTo(map)}
+    else{liveMk.setLatLng(ll);liveCircle.setLatLng(ll).setRadius(lastPos.acc)}
+    if(follow)map.panTo(ll,{animate:true});
+  },e=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+}
+function stopLive(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}}
+function toggleFollow(){follow=!follow;document.getElementById('btnLocate').classList.toggle('on',follow);if(follow&&lastPos&&map)map.setView([lastPos.lat,lastPos.lng],Math.max(map.getZoom(),15))}
+function initMap(){if(map)return;map=L.map('map',{zoomControl:false,attributionControl:true}).setView([32.6,35.3],9);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);layer=L.layerGroup().addTo(map);map.on('dragstart',()=>{follow=false;document.getElementById('btnLocate').classList.remove('on')});document.getElementById('btnLocate').classList.add('on')}
 async function drawMap(){
   if(!map)return;layer.clearLayers();const d=day();const st=ordered(d).filter(s=>s.lat);if(!st.length)return;
   const pts=[];
   if(d.route?.me){pts.push([d.route.me.lat,d.route.me.lng]);L.marker([d.route.me.lat,d.route.me.lng],{icon:L.divIcon({className:'',html:'<div class="mk me">אני</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(layer)}
   st.forEach(s=>{const i=ordered(d).indexOf(s)+1;pts.push([s.lat,s.lng]);L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:`<div class="mk ${s.status==='delivered'?'done':''}">${s.status==='delivered'?'✓':i}</div>`,iconSize:[30,30],iconAnchor:[15,15]})}).addTo(layer).bindPopup(`<b>${esc(s.name||'לקוח')}</b><br>${esc(s.address)}`)});
-  map.fitBounds(pts,{padding:[30,30]});
+  if(lastPos)pts.push([lastPos.lat,lastPos.lng]);map.fitBounds(pts,{padding:[30,30]});follow=false;document.getElementById('btnLocate').classList.remove('on');
   const seq=[];if(d.route?.me)seq.push(d.route.me);st.filter(s=>s.status==='pending').forEach(s=>seq.push({lat:s.lat,lng:s.lng}));
   if(seq.length>=2){try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${seq.map(p=>p.lng+','+p.lat).join(';')}?overview=simplified&geometries=geojson`);const j=await r.json();if(j.code==='Ok')L.geoJSON(j.routes[0].geometry,{style:{color:'#F5A524',weight:4,opacity:.85}}).addTo(layer)}catch(e){L.polyline(seq.map(p=>[p.lat,p.lng]),{color:'#F5A524',weight:3,dashArray:'6 6'}).addTo(layer)}}
 }
