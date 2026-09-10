@@ -160,7 +160,7 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
       <button class="btn amber" onclick="openAdd()">הוסף לקוח</button>
       <div id="dayList"></div>
       <div id="dayActions" style="display:none" class="stack">
-        <button class="btn green" id="btnOptimize" onclick="optimizeDay()">🧭 סדר לי את היום</button>
+        <button class="btn green" id="btnOptimize" onclick="optimizeDay()">🧭 חשב מסלול</button>
         <button class="btn red sm" onclick="clearDay()">נקה את היום</button>
       </div>
     </div>
@@ -209,11 +209,8 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
     <label>שם הלקוח</label><input id="fName" placeholder="למשל: משה כהן">
     <label>כתובת (רחוב, מספר, עיר)</label><input id="fAddr" placeholder="הרצל 12, חדרה">
     <label>טלפון</label><input id="fPhone" type="tel" placeholder="050-0000000">
-    <label>הערה</label><input id="fNote" placeholder="קומה 3, להתקשר לפני">
-    <div class="row">
-      <div><label>לא לפני</label><input id="fFrom" type="time"></div>
-      <div><label>לא אחרי</label><input id="fTo" type="time"></div>
-    </div>
+    <label>כמות שקיות</label>
+    <select id="fBags"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
     <div style="height:14px"></div>
     <button class="btn amber" onclick="saveStop()">שמור לקוח</button>
     <div style="height:8px"></div>
@@ -337,22 +334,22 @@ function stopHTML(s,i,mode){
   const cls=s.status==='delivered'?'done':s.status==='skipped'?'skip':'';
   const meta=[];
   if(s.eta&&s.status==='pending')meta.push('<span>הגעה <b>'+s.eta+'</b></span>');
-  if(s.from||s.to)meta.push('<span>חלון '+(s.from||'')+'–'+(s.to||'')+'</span>');
   if(s.status==='delivered')meta.push('<span>נמסר · שולם <b>'+ils(s.paid||0)+'</b></span>');
   if(s.status==='skipped')meta.push('<span style="color:var(--red)">לא היה בבית</span>');
-  if(s.note)meta.push('<span>'+esc(s.note)+'</span>');
+  if(s.bags)meta.push('<span>🛍️ '+s.bags+' שקיות</span>');
   if(!s.lat&&mode==='day')meta.push('<span class="dim">⌖ טרם אותר</span>');
   const acts=mode==='day'
     ?`<button class="icb" onclick="openAdd('${s.id}')">✎</button><button class="icb" onclick="delStop('${s.id}')">🗑</button>`
     :`<button class="icb" onclick="moveStop('${s.id}',-1)">▲</button><button class="icb" onclick="moveStop('${s.id}',1)">▼</button>`;
-  return `<div class="stop ${cls}"><div class="num">${s.status==='delivered'?'✓':i+1}</div><div class="body"><div class="name">${esc(s.name||'לקוח')}</div><div class="addr">${esc(s.address)}</div><div class="meta">${meta.join('')}</div></div><div class="acts">${acts}</div></div>`;
+  const nameRow=mode==='day'?'':`<div class="name">${esc(s.name||'לקוח')}</div>`;
+  return `<div class="stop ${cls}"><div class="num">${s.status==='delivered'?'✓':i+1}</div><div class="body">${nameRow}<div class="addr">${esc(s.address)}</div><div class="meta">${meta.join('')}</div></div><div class="acts">${acts}</div></div>`;
 }
 function renderDay(d){
   const el=document.getElementById('dayList');const st=ordered(d);
   document.getElementById('dayActions').style.display=st.length?'':'none';
   if(!st.length){el.innerHTML='<div class="empty"><div class="big">📦</div>עוד אין לקוחות להיום.<br>הוסף לקוח או הדבק את הרשימה מהמנהל.</div>';return}
   el.innerHTML='<div class="list">'+st.map((s,i)=>stopHTML(s,i,'day')).join('')+'</div>';
-  document.getElementById('btnOptimize').textContent=d.route?'🧭 סדר מחדש את היום':'🧭 סדר לי את היום';
+  document.getElementById('btnOptimize').textContent=d.route?'🧭 חשב מסלול מחדש':'🧭 חשב מסלול';
 }
 function renderRouteList(d){
   const el=document.getElementById('routeList');const sm=document.getElementById('routeSummary');const st=ordered(d);
@@ -376,8 +373,8 @@ function renderDrive(d){
     <div class="lbl">התחנה הבאה</div>
     <div class="nm">${esc(n.name||'לקוח')}</div>
     <div class="ad">${esc(n.address)}</div>
-    ${n.note?`<div class="nt">📝 ${esc(n.note)}</div>`:''}
-    <div class="eta">${n.eta?`<span>הגעה משוערת <b>${n.eta}</b></span>`:''}${(n.from||n.to)?`<span>חלון <b>${n.from||''}–${n.to||''}</b></span>`:''}</div>
+    ${n.bags?`<div class="nt">🛍️ ${n.bags} שקיות</div>`:''}
+    <div class="eta">${n.eta?`<span>הגעה משוערת <b>${n.eta}</b></span>`:''}</div>
   </div>
   <div style="height:12px"></div>
   <button class="btn amber" style="min-height:66px;font-size:21px" onclick="navigateTo('${n.id}')">🧭 נווט ב-${S().nav==='waze'?'Waze':'Google Maps'}</button>
@@ -406,7 +403,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function openAdd(id){
   const s=id?day().stops.find(x=>x.id===id):null;
   document.getElementById('addTitle').textContent=s?'עריכת לקוח':'לקוח חדש';
-  fId.value=s?s.id:'';fName.value=s?.name||'';fAddr.value=s?.address||'';fPhone.value=s?.phone||'';fNote.value=s?.note||'';fFrom.value=s?.from||'';fTo.value=s?.to||'';
+  fId.value=s?s.id:'';fName.value=s?.name||'';fAddr.value=s?.address||'';fPhone.value=s?.phone||'';fBags.value=s?.bags||1;
   openM('mAdd');setTimeout(()=>(s?fName:fAddr).focus(),150);
 }
 function saveStop(){
@@ -414,7 +411,7 @@ function saveStop(){
   const d=day();let s=d.stops.find(x=>x.id===fId.value);
   if(!s){s={id:uid(),status:'pending'};d.stops.push(s)}
   if(s.address!==a){s.lat=null;s.lng=null;d.route=null}
-  Object.assign(s,{name:fName.value.trim(),address:a,phone:fPhone.value.trim(),note:fNote.value.trim(),from:fFrom.value,to:fTo.value});
+  Object.assign(s,{name:fName.value.trim(),address:a,phone:fPhone.value.trim(),bags:+fBags.value||1});
   save();closeM('mAdd');render();geocodeStop(s).then(()=>{save();render()});
 }
 function delStop(id){const d=day();d.stops=d.stops.filter(s=>s.id!==id);if(d.route)d.route.order=d.route.order.filter(x=>x!==id);save();render()}
@@ -463,7 +460,7 @@ async function parsePaste(){
   if(!items.length) items=basicParse(txt);
   b.disabled=false;b.textContent='פרק לכתובות';
   if(!items.length){toast('לא זוהו כתובות');return}
-  const d=day();items.forEach(it=>d.stops.push({id:uid(),status:'pending',name:it.name||'',address:it.address||'',phone:it.phone||'',note:it.note||'',from:it.from||'',to:it.to||''}));
+  const d=day();items.forEach(it=>d.stops.push({id:uid(),status:'pending',name:it.name||'',address:it.address||'',phone:it.phone||'',bags:+it.bags||1}));
   d.route=null;save();closeM('mPaste');render();toast('נוספו '+items.length+' לקוחות');
   geocodeAll();
 }
